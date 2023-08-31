@@ -51,3 +51,81 @@ def parse_json(data):
 ######################################################################
 # INSERT CODE HERE
 ######################################################################
+@app.route("/health")
+def health():
+    return jsonify(dict(status="OK")), 200
+
+@app.route("/count")
+def count():
+    """return length of data"""
+    count = db.songs.count_documents({})
+    if count:
+        return jsonify(count=count), 200
+
+    return {"message": "Internal server error"}, 500
+
+@app.route("/song", methods=["GET"])
+def get_songs():
+    """return all songs"""
+    songs = db.songs.find({})
+    if songs:
+        return jsonify(songs=parse_json(songs)), 200
+
+    return {"message": "Internal server error"}, 500
+
+@app.route("/song/<int:id>", methods=["GET"])
+def get_song(id):
+    """return a song"""
+    song = db.songs.find_one({"id": id})
+
+    if song:
+        return jsonify(song=parse_json(song)), 200
+
+    return {"message": "Song not found"}, 404
+
+@app.route("/song", methods=["POST"])
+def create_song():
+    """create a song"""
+    data = request.get_json()
+    if not data:
+        return {"message": "Missing data"}, 400
+
+    song = db.songs.find_one({"id": data["id"]})
+    if song:
+        return {"Message": "song with id {} already present".format(data["id"])}, 302
+
+    result: InsertOneResult = db.songs.insert_one(data)
+    if result:
+        return jsonify(song=parse_json(data)), 201
+
+    return {"message": "Internal server error"}, 500
+
+@app.route("/song/<int:id>", methods=["PUT"])
+def update_song(id):
+    """update a song"""
+    data = request.get_json()
+    if not data:
+        return {"message": "Missing data"}, 400
+
+    song = db.songs.find_one({"id": id})
+    if not song:
+        return {"message": "Song not found"}, 404
+
+    result = db.songs.update_one({"id": id}, {"$set": data})
+    if result:
+        return jsonify(song=parse_json(data)), 200
+
+    return {"message": "Internal server error"}, 500
+
+@app.route("/song/<int:id>", methods=["DELETE"])
+def delete_song(id):
+    """delete a song"""
+    song = db.songs.find_one({"id": id})
+    if not song:
+        return {"message": "Song not found"}, 404
+
+    result = db.songs.delete_one({"id": id})
+    if result:
+        return {}, 204
+
+    return {"message": "Internal server error"}, 500
